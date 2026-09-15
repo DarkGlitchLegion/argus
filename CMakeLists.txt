@@ -3,5 +3,7 @@ project(argus)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(argus main.cpp
+add_executable(argus
+    main.cpp
+    remote_command_handler.cpp
 )
