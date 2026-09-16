@@ -46,7 +46,7 @@ private:
         const std::string& requestId
     );
 
-    CommandResult executeAllowedCommand(
+    CommandResult executeCommand(
         const std::string& command,
         const std::string& requestId
     );
