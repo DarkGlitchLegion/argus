@@ -7,9 +7,16 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <csignal>
+#include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <sys/select.h>
+#include <sys/wait.h>
+#include <thread>
+#include <unistd.h>
 
 using json = nlohmann::json;
 
@@ -109,6 +116,28 @@ RemoteCommandHandler::sendCommand(
 
         return result;
     }
+
+    std::thread([this, requestId, timeoutSeconds] {
+        std::this_thread::sleep_for(
+            std::chrono::seconds(timeoutSeconds));
+
+        std::shared_ptr<std::promise<CommandResult>> timedOut;
+        {
+            std::lock_guard<std::mutex> lock(pendingMutex_);
+            const auto it = pendingResults_.find(requestId);
+            if (it != pendingResults_.end()) {
+                timedOut = it->second;
+                pendingResults_.erase(it);
+            }
+        }
+        if (timedOut) {
+            CommandResult result;
+            result.requestId = requestId;
+            result.status = "error";
+            result.error = "COMMAND TIMEOUT";
+            timedOut->set_value(std::move(result));
+        }
+    }).detach();
 
     return future;
 }
@@ -241,7 +270,7 @@ void RemoteCommandHandler::handleAnswer(
     }
 }
 
-CommandResult RemoteCommandHandler::executeAllowedCommand(
+CommandResult RemoteCommandHandler::executeCommand(
     const std::string& command,
     const std::string& requestId
 )
@@ -249,27 +278,82 @@ CommandResult RemoteCommandHandler::executeAllowedCommand(
     CommandResult result;
     result.requestId = requestId;
 
-    if (command == "ping") {
-        result.status = "success";
-        result.output = "pong";
+    int outputPipe[2];
+    if (pipe(outputPipe) != 0) {
+        result.status = "error";
+        result.error = std::strerror(errno);
         return result;
     }
 
-    if (command == "status") {
-        result.status = "success";
-        result.output = "online";
+    const pid_t child = fork();
+    if (child < 0) {
+        close(outputPipe[0]);
+        close(outputPipe[1]);
+        result.status = "error";
+        result.error = std::strerror(errno);
         return result;
     }
 
-    if (command == "version") {
-        result.status = "success";
-        result.output = "1.0.0";
-        return result;
+    if (child == 0) {
+        dup2(outputPipe[1], STDOUT_FILENO);
+        dup2(outputPipe[1], STDERR_FILENO);
+        close(outputPipe[0]);
+        close(outputPipe[1]);
+        execl("/bin/sh", "sh", "-c", command.c_str(), nullptr);
+        _exit(127);
     }
 
-    result.status = "error";
-    result.error = "COMMAND_NOT_ALLOWED";
+    close(outputPipe[1]);
+    std::string output;
+    char buffer[4096];
+    int status = 0;
+    bool finished = false;
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(120);
 
+    while (!finished) {
+        fd_set descriptors;
+        FD_ZERO(&descriptors);
+        FD_SET(outputPipe[0], &descriptors);
+        timeval timeout{0, 100000};
+        const int ready = select(outputPipe[0] + 1, &descriptors, nullptr, nullptr,
+                                 &timeout);
+        if (ready > 0 && FD_ISSET(outputPipe[0], &descriptors)) {
+            const ssize_t count = read(outputPipe[0], buffer, sizeof(buffer));
+            if (count > 0) {
+                output.append(buffer, static_cast<std::size_t>(count));
+            }
+        }
+
+        const pid_t waited = waitpid(child, &status, WNOHANG);
+        if (waited == child) {
+            finished = true;
+        } else if (std::chrono::steady_clock::now() >= deadline) {
+            kill(child, SIGKILL);
+            waitpid(child, &status, 0);
+            close(outputPipe[0]);
+            result.status = "error";
+            result.error = "COMMAND TIMEOUT";
+            return result;
+        }
+    }
+
+    while (const ssize_t count = read(outputPipe[0], buffer, sizeof(buffer))) {
+        if (count > 0) {
+            output.append(buffer, static_cast<std::size_t>(count));
+        }
+    }
+    close(outputPipe[0]);
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        result.status = "success";
+        result.output = output.empty()
+            ? "COMMAND EXECUTED SUCCESSFULLY"
+            : output;
+    } else {
+        result.status = "error";
+        result.error = output.empty() ? "COMMAND FAILED" : output;
+    }
     return result;
 }
 
@@ -290,10 +374,10 @@ void RemoteCommandHandler::processCommandRequest(
         << requestId
         << '\n';
 
-    CommandResult result =
-        executeAllowedCommand(command, requestId);
-
-    sendResult(sender, result);
+    std::thread([this, sender, command, requestId] {
+        const CommandResult result = executeCommand(command, requestId);
+        sendResult(sender, result);
+    }).detach();
 }
 
 void RemoteCommandHandler::handleCommandResult(
