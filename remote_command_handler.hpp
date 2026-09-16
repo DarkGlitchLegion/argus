@@ -20,7 +20,7 @@ class RemoteCommandHandler {
 
     //Send a remote command.
     json sendCommand(const string& target, const string& command, bool waitForResult = true, int timeoutSeconds = 120);
-ent* signal_;
+    SignalClent* signal_;
 
     struct PendingRequest {
       mutex mutex;

@@ -93,7 +93,6 @@ json RemoteCommandHandler::sendCommand(const string& target, const string& comma
         lock_guard<mutex> cleanup(pendingMutex);
         pendingResults.erase(requestId);
     }
-
     if(!success){
         throw runtime_error("COMMAND TIMEOUT");
     }
@@ -128,8 +127,7 @@ void RemoteCommandHandler::dispatchMessage(const json& message)
 
 
 // OFFER HANDLER
-void RemoteCommandHandler::handleOffer(const json& message)
-{
+void RemoteCommandHandler::handleOffer(const json& message) {
     if(!message.contains("sdp")) return;
 
     string sdp = message["sdp"];
@@ -159,8 +157,7 @@ void RemoteCommandHandler::handleOffer(const json& message)
 
 
 // ANSWER HANDLER
-void RemoteCommandHandler::handleAnswer(const json& message)
-{
+void RemoteCommandHandler::handleAnswer(const json& message) {
     if(!message.contains("sdp")) return;
 
     string sdp = message["sdp"];
@@ -181,8 +178,7 @@ void RemoteCommandHandler::handleAnswer(const json& message)
 }
 
 // PROCESS COMMAND REQUEST
-void RemoteCommandHandler::processCommandRequest(const json& message)
-{
+void RemoteCommandHandler::processCommandRequest(const json& message) {
     string sender = message.value("sender","");
     string command = message.value("command","");
     string requestId = message.value("request_id","");
@@ -205,9 +201,7 @@ void RemoteCommandHandler::processCommandRequest(const json& message)
 }
 
 // EXECUTE COMMAND
-tuple<string,string,string>
-RemoteCommandHandler::executeCommand(const string& command)
-{
+tuple<string,string,string> RemoteCommandHandler::executeCommand(const string& command) {
     string tempFile = "/tmp/argus_output.txt";
 
     string shellCommand =
@@ -236,9 +230,7 @@ RemoteCommandHandler::executeCommand(const string& command)
 }
 
 // HANDLE RESULT
-void RemoteCommandHandler::handleCommandResult(
-    const json& message)
-{
+void RemoteCommandHandler::handleCommandResult(const json& message) {
     string requestId =
         message.value("request_id","");
 
