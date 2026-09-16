@@ -5,7 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(argus
     main.cpp
-        controller/controller.cpp
-        signal/signal_client.cpp
-        handler/remote_command_handler.cpp
+        src/model/MalwareSignal.cpp
+        include/model/MalwareSignal.h
+        src/model/RemoteCommandHandler.cpp
+        include/model/RemoteCommandHandler.h
+        src/controller/Listener.cpp
+        include/controller/Listener.h
 )
