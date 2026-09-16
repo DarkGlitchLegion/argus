@@ -1,5 +1,5 @@
-#include "../remote_command_handler.hpp"
-#include "signal_client.hpp"
+#include "../handler/remote_command_handler.hpp"
+#include "../signal/signal_client.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -36,7 +36,7 @@ string RemoteCommandHandler::generateUUID() {
   for(int i = 0; i < 3; i++) ss << dist(gen);
   ss << "-";
   ss << dist2(gen);
-  for(int i = 0; i < 3; i++) ss dist(gen);
+  for(int i = 0; i < 3; i++) ss << dist(gen);
   ss << "-";
   for(int i = 0; i < 12; i++) ss << dist(gen);
 
