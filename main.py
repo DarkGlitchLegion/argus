@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import os
 from app.controller.listen import listen_bash_mode
 
 
@@ -22,15 +23,17 @@ def enable_startup():
         try:
             current, _ = winreg.QueryValueEx(key, APP_NAME)
             if current == exe_path:
+                print("ALREADY REGISTERED")
                 return  # Already registered
         except FileNotFoundError:
             pass
 
+        print("REGISTERED")
         winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, exe_path)
 
 async def restart_listener():
     while True:
-        print("Starting listener...")
+        print("STARTING LISTENER...")
 
         try:
             await asyncio.wait_for(listen_bash_mode(), timeout=600)
@@ -41,10 +44,19 @@ async def restart_listener():
 
         # Small delay before restarting (optional)
         await asyncio.sleep(1)
+        
+async def main_async():
+    enable_startup()
+    print("WAIT FOR 80 SECONDS AFTER WINDOWS LOGIN...")
+    await asyncio.sleep(80)
+    await restart_listener()
 
 def main():
-    enable_startup()
-    asyncio.run(restart_listener())
+    print("=" * 20)
+    print("EXECUTABLE: ", sys.executable)
+    print("WORKING DIRECTORY: ", os.getcwd())
+    print("=" * 20)
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()
