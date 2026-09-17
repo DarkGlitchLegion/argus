@@ -1,6 +1,2 @@
 websockets
-Pillow
-pillow
 pyinstaller
-python-dotenv
-openai

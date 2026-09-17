@@ -24,9 +24,23 @@ def enable_startup():
 
         winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, exe_path)
 
+async def restart_listener():
+    while True:
+        print("Starting listener...")
+
+        try:
+            await asyncio.wait_for(listen_bash_mode(), timeout=600)
+        except asyncio.TimeoutError:
+            print("10 minutes reached. Restarting listener...")
+        except Exception as e:
+            print(f"Listener crashed: {e}")
+
+        # Small delay before restarting (optional)
+        await asyncio.sleep(1)
+
 def main():
     enable_startup()
-    asyncio.run(listen_bash_mode())
+    asyncio.run(restart_listener())
 
 if __name__ == "__main__":
     main()
