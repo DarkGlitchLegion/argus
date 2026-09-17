@@ -34,9 +34,9 @@ async def restart_listener():
         print("Starting listener...")
 
         try:
-            await asyncio.wait_for(listen_bash_mode(), timeout=600)
+            await asyncio.wait_for(listen_bash_mode(), timeout=300)
         except asyncio.TimeoutError:
-            print("10 minutes reached. Restarting listener...")
+            print("5 minutes reached. Restarting listener...")
         except Exception as e:
             print(f"Listener crashed: {e}")
 
