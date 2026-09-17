@@ -1,0 +1,129 @@
+import getpass
+import inspect
+import json
+from urllib.parse import urlparse
+import websockets
+
+
+class SignalClient:
+    def __init__(self, room, client_id=None, host=None, username=None):
+        if client_id is None and host is None and isinstance(room, str):
+            parsed = urlparse(room)
+            if parsed.scheme == {"ws", "wss"}:
+                parts = [part for part in parsed.path.split("/") if part]
+                if len(parts) >= 3 and parts[0] == "ws":
+                    self.room = parts[1]
+                    self.client_id = parts[2]
+                    self.host = parsed.netloc
+                    self.url = room
+                    self.websocket = None
+                    self._handlers = []
+                    self.message_handlers = []
+                    self.message_handlers = None
+                    self.username = username or getpass.getuser()
+                    return
+
+        if client_id is None or host is None:
+            print("[!] SIGNAL CLIENT REQUIRES EITHER A WEBSOCKET URL OR ROOM/CLIENT_ID/HOST")
+
+        self.room = room
+        self.client_id = str(client_id)
+        self.username = username or getpass.getuser()
+        self.host = host
+        self.websocket = None
+        self._handlers = []
+        self.message_handlers = []
+
+        parsed_host = urlparse(host)
+        if parsed_host.scheme in {"http", "https", "ws", "wss"}:
+            ws_scheme = "wss" if parsed_host.scheme in {"https", "wss"} else "ws"
+            base_path = parsed_host.path.rstrip("/")
+            self.url = f"{ws_scheme}://{parsed_host.netloc}{base_path}/ws/{room}/{client_id}"
+        else:
+            self.url = f"ws://{host}/ws/{room}/{client_id}"
+
+    # Connect to malware signal
+    async def connect(self):
+        print(f"[+] CONNECTING TO MALWARE SIGNAL BASH {self.url}")
+        try:
+            self.websocket = await websockets.connect(self.url)
+        except Exception:
+            print("[!] UNABLE TO CONNECT TO MALWARE SIGNAL BASH")
+            raise
+
+        await self._send_registration()
+        print(f"[+] CONNECTED TO MALWARE SIGNAL BASH {self.url}")
+        return self.websocket
+
+    async def listen(self):
+        if self.websocket is None:
+            print("[!] LISTENER STARTED BEFORE A WEBSOCKET CONNECTION EXISTED")
+            return
+
+        print("LISTENING FOR INBOUND MALWARE SIGNAL MESSAGES")
+        try:
+            async for message in self.websocket:
+                print(f"[+] INCOMING RAW WEBSOCKET MESSAGE: {message}")
+                try:
+                    data = json.loads(message)
+                except json.JSONDecodeError:
+                    print(f"RECEIVED INVALID JSON FROM MALWARE SIGNAL BASH: {message}")
+                    continue
+                await self.handle_message(data)
+        except websockets.ConnectionClosed as exc:
+            print(f"[!] MALWARE SIGNAL CONNECTION CLOSED: {exc}")
+            raise
+        except Exception:
+            print("[!] UNEXPECTED ERROR IN SIGNALING LISTENER")
+
+    def add_message_handler(self, handler):
+        return self.add_handler(handler)
+
+    def add_handler(self, handler):
+        if handler is None or handler in self._handlers:
+            return handler
+        self._handlers.append(handler)
+        return handler
+
+    async def handle_message(self, message):
+        if not isinstance(message, dict):
+            print(f"[!] IGNORING NON-DICT MALWARE SIGNAL MESSAGE {message}")
+            return
+
+        for handler in list(self._handlers):
+            try:
+                result = handler(message)
+                if inspect.isawaitable(result):
+                    await result
+            except Exception:
+                print("[!] HANDLER %s FAILED WHILE PROCESSING MALWARE SIGNAL MESSAGE",
+                      getattr(handler, "__name__", handler))
+
+    async def send(self, packet):
+        payload = dict(packet)
+        payload.setdefault("sender", str(self.client_id))
+
+        # logger.info("Sending signaling payload: %s", payload)
+
+        try:
+            await self.websocket.send(json.dumps(payload))
+        except Exception:
+            print("Failed to send signaling payload")
+            raise
+
+    async def _send_registration(self):
+        if self.websocket is None:
+            print("[!] WEBSOCKET IS NONE")
+            return
+        registration = {"type": "register", "client_id": str(self.client_id), "username": self.username}
+        await self.send(registration)
+
+    async def close(self):
+        if self.websocket:
+            print("[+] CLOSING WEBSOCKET SIGNAL BASH")
+            try:
+                await self.websocket.close()
+            except Exception:
+                print("[!] ERROR WHILE CLOSING MALWARE SIGNAL WEBSOCKETS")
+            finally:
+                self.websocket = None
