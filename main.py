@@ -7,6 +7,11 @@ from app.controller.listen import listen_bash_mode
 APP_NAME = "Argus"
 
 def enable_startup():
+    # Do nothing on Linux or macOS.
+    if sys.platform != "win32":
+        return
+
+    import winreg
     exe_path = sys.executable  # Path to Argus.exe
 
     with winreg.OpenKey(
