@@ -1,8 +1,8 @@
 import asyncio
-from core.client import client_id, username
-from core.config import ROOM, HOST
-from signaling.signal_client import SignalClient
-from handler.remote_command_handler import RemoteCommandHandler as ReceiverHandler
+from app.core.client import client_id, username
+from app.core.config import ROOM, HOST
+from app.signaling.signal_client import SignalClient
+from app.handler.remote_command_handler import RemoteCommandHandler as ReceiverHandler
 
 async def listen_bash_mode():
     retry_delay = 10
