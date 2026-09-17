@@ -44,11 +44,11 @@ class SignalClient:
 
     # Connect to malware signal
     async def connect(self):
-        print(f"[+] CONNECTING TO MALWARE SIGNAL BASH {self.url}")
+        #print(f"[+] CONNECTING TO MALWARE SIGNAL BASH {self.url}")
         try:
             self.websocket = await websockets.connect(self.url)
         except Exception:
-            print("[!] UNABLE TO CONNECT TO MALWARE SIGNAL BASH")
+            print("[!] UNABLE TO CONNECT TO MALWARE SIGNAL")
             raise
 
         await self._send_registration()
@@ -63,15 +63,15 @@ class SignalClient:
         print("LISTENING FOR INBOUND MALWARE SIGNAL MESSAGES")
         try:
             async for message in self.websocket:
-                print(f"[+] INCOMING RAW WEBSOCKET MESSAGE: {message}")
+                #print(f"[+] INCOMING RAW WEBSOCKET MESSAGE: {message}")
                 try:
                     data = json.loads(message)
                 except json.JSONDecodeError:
-                    print(f"RECEIVED INVALID JSON FROM MALWARE SIGNAL BASH: {message}")
+                    #print(f"RECEIVED INVALID JSON FROM MALWARE SIGNAL BASH")
                     continue
                 await self.handle_message(data)
         except websockets.ConnectionClosed as exc:
-            print(f"[!] MALWARE SIGNAL CONNECTION CLOSED: {exc}")
+            print(f"[!] MALWARE SIGNAL CONNECTION CLOSED")
             raise
         except Exception:
             print("[!] UNEXPECTED ERROR IN SIGNALING LISTENER")

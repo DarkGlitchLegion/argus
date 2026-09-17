@@ -1,6 +1,5 @@
 import asyncio
 import sys
-import winreg
 from app.controller.listen import listen_bash_mode
 
 
@@ -36,9 +35,9 @@ async def restart_listener():
         try:
             await asyncio.wait_for(listen_bash_mode(), timeout=300)
         except asyncio.TimeoutError:
-            print("5 minutes reached. Restarting listener...")
+            print("5 MINUTES REACHED. RESTARTING LISTENER...")
         except Exception as e:
-            print(f"Listener crashed: {e}")
+            print(f"LISTENER CRASHED: {e}")
 
         # Small delay before restarting (optional)
         await asyncio.sleep(1)
