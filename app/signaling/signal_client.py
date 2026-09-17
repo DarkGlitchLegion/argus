@@ -44,7 +44,7 @@ class SignalClient:
 
     # Connect to malware signal
     async def connect(self):
-        #print(f"[+] CONNECTING TO MALWARE SIGNAL BASH {self.url}")
+        print(f"[+] CONNECTING TO MALWARE SIGNAL BASH {self.url}")
         try:
             self.websocket = await websockets.connect(self.url)
         except Exception:
