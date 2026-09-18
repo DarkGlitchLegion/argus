@@ -1,8 +1,13 @@
 import getpass
 import inspect
 import json
+import asyncio
+import logging
 from urllib.parse import urlparse
 import websockets
+
+
+logger = logging.getLogger(__name__)
 
 
 class SignalClient:
@@ -42,17 +47,28 @@ class SignalClient:
         else:
             self.url = f"ws://{host}/ws/{room}/{client_id}"
 
-    # Connect to malware signal
-    async def connect(self):
-        print(f"[+] CONNECTING TO MALWARE SIGNAL BASH {self.url}")
-        try:
+    # Connect to signal
+    async def connect(self, timeout=15):
+        logger.info("Connecting to signaling server: %s", self.url)
+
+        async def connect_and_register():
             self.websocket = await websockets.connect(self.url)
+            await self._send_registration()
+            return self.websocket
+
+        try:
+            self.websocket = await asyncio.wait_for(
+                connect_and_register(),
+                timeout=timeout,
+            )
+        except asyncio.CancelledError:
+            raise
         except Exception:
-            print("[!] UNABLE TO CONNECT TO MALWARE SIGNAL")
+            logger.exception("Unable to connect to signaling server: %s", self.url)
+            await self.close()
             raise
 
-        await self._send_registration()
-        print(f"[+] CONNECTED TO MALWARE SIGNAL BASH {self.url}")
+        logger.info("Connected to signaling server: %s", self.url)
         return self.websocket
 
     async def listen(self):
@@ -60,21 +76,24 @@ class SignalClient:
             print("[!] LISTENER STARTED BEFORE A WEBSOCKET CONNECTION EXISTED")
             return
 
-        print("LISTENING FOR INBOUND MALWARE SIGNAL MESSAGES")
+        logger.info("Listening for inbound signaling messages")
         try:
             async for message in self.websocket:
                 #print(f"[+] INCOMING RAW WEBSOCKET MESSAGE: {message}")
                 try:
                     data = json.loads(message)
                 except json.JSONDecodeError:
-                    #print(f"RECEIVED INVALID JSON FROM MALWARE SIGNAL BASH")
+                    #print(f"RECEIVED INVALID JSON FROM SIGNAL BASH")
                     continue
                 await self.handle_message(data)
         except websockets.ConnectionClosed as exc:
-            print(f"[!] MALWARE SIGNAL CONNECTION CLOSED")
+            logger.info("Signaling connection closed")
+            raise
+        except asyncio.CancelledError:
             raise
         except Exception:
-            print("[!] UNEXPECTED ERROR IN SIGNALING LISTENER")
+            logger.exception("Unexpected error in signaling listener")
+            raise
 
     def add_message_handler(self, handler):
         return self.add_handler(handler)
@@ -87,7 +106,7 @@ class SignalClient:
 
     async def handle_message(self, message):
         if not isinstance(message, dict):
-            print(f"[!] IGNORING NON-DICT MALWARE SIGNAL MESSAGE {message}")
+            print(f"[!] IGNORING NON-DICT SIGNAL MESSAGE {message}")
             return
 
         for handler in list(self._handlers):
@@ -96,7 +115,7 @@ class SignalClient:
                 if inspect.isawaitable(result):
                     await result
             except Exception:
-                print("[!] HANDLER %s FAILED WHILE PROCESSING MALWARE SIGNAL MESSAGE",
+                print("[!] HANDLER %s FAILED WHILE PROCESSING SIGNAL MESSAGE",
                       getattr(handler, "__name__", handler))
 
     async def send(self, packet):
@@ -124,6 +143,6 @@ class SignalClient:
             try:
                 await self.websocket.close()
             except Exception:
-                print("[!] ERROR WHILE CLOSING MALWARE SIGNAL WEBSOCKETS")
+                print("[!] ERROR WHILE CLOSING SIGNAL WEBSOCKETS")
             finally:
                 self.websocket = None
