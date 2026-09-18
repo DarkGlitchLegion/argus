@@ -6,6 +6,10 @@ from app.controller.listen import listen_bash_mode
 
 APP_NAME = "Argus"
 
+def get_app_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+
 def enable_startup():
     # Do nothing on Linux or macOS.
     if sys.platform != "win32":
@@ -46,9 +50,21 @@ async def restart_listener():
         await asyncio.sleep(1)
         
 async def main_async():
+    app_dir = get_app_dir()
+
+    print("=" * 40)
+    print("ARGUS STARTING")
+    print("EXE: ", sys.executable)
+    print("APP DIR: ", app_dir)
+    print("CWD: ", os.getcwd())
+    print("PATH: ", os.environ.get("PATH"))
+    print("APPDATA: ", os.environ.get("LOCALAPPDATA"))
+    print("=" * 40)
+
     enable_startup()
-    print("WAIT FOR 80 SECONDS AFTER WINDOWS LOGIN...")
-    await asyncio.sleep(80)
+
+    print("WAITING FOR WINDOWS NETWORK FOR 30")
+    await asyncio.sleep(30)
     await restart_listener()
 
 def main():
