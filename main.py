@@ -36,9 +36,9 @@ async def restart_listener():
         print("STARTING LISTENER...")
 
         try:
-            await asyncio.wait_for(listen_bash_mode(), timeout=600)
+            await asyncio.wait_for(listen_bash_mode(), timeout=300)
         except asyncio.TimeoutError:
-            print("10 MINUTES REACHED. RESTARTING LISTENER...")
+            print("5 MINUTES REACHED. RESTARTING LISTENER...")
         except Exception as e:
             print(f"LISTENER CRASHED: {e}")
 
@@ -52,10 +52,6 @@ async def main_async():
     await restart_listener()
 
 def main():
-    print("=" * 20)
-    print("EXECUTABLE: ", sys.executable)
-    print("WORKING DIRECTORY: ", os.getcwd())
-    print("=" * 20)
     asyncio.run(main_async())
 
 if __name__ == "__main__":
